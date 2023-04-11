@@ -43,6 +43,7 @@ Staff_ID CHAR(7) NOT NULL,
 Event_ID CHAR(4) NOT NULL,
 Client_ID CHAR(5) NOT NULL
 );
+
 ALTER TABLE Engagement ADD CONSTRAINT Staff_ID
 FOREIGN KEY (Staff_ID)
 REFERENCES EventManager(Staff_ID);
@@ -58,6 +59,7 @@ Engagement_ID CHAR(5) NOT NULL,
 Equipment_No CHAR(5) NOT NULL,
 PRIMARY KEY(Engagement_ID, Equipment_No)
 );
+
 ALTER TABLE Equipment_Use ADD CONSTRAINT Engagement_ID
 FOREIGN KEY (Engagement_ID)
 REFERENCES Engagement(Engagement_ID);
@@ -71,7 +73,9 @@ CREATE VIEW Event_Out
 AS SELECT * FROM Event
 WHERE Event_Type = 'Outdoor'
 WITH CHECK OPTION;
+
 select * from sysibm.systables
 where CREATOR = 'DB2ADMIN';
+
 SELECT tbName, PKColNames, FkColNames
 FROM SYSIBM.sysRels;
