@@ -107,6 +107,42 @@ select * from engagement e
 join client c on c.client_id = e.client_id;
 
 
+/* ADDITIONAL (Logging) */
+CREATE TABLE client_log (entry_time timestamp, op char(1), user_id varchar(20), entry client);
+
+CREATE or REPLACE FUNCTION fclient_log() RETURNS trigger LANGUAGE plpgsql AS
+$$
+BEGIN
+ IF (TG_OP = 'DELETE') THEN
+   INSERT INTO client_log(entry_time, op, user_id, entry) VALUES (now(), 'D', user, OLD);
+ ELSIF (TG_OP = 'UPDATE') THEN
+   IF NEW <> OLD THEN
+    INSERT INTO client_log(entry_time, op, user_id, entry) VALUES (now(), 'U', user, OLD);
+   END IF;
+ ELSIF (TG_OP = 'INSERT') THEN
+   INSERT INTO client_log(entry_time, op, user_id, entry) VALUES (now(), 'I', user, NEW); 
+ END IF;
+RETURN NULL;
+END;
+$$;
+
+CREATE TRIGGER trclient_log
+  AFTER INSERT OR UPDATE OR DELETE ON client
+  FOR EACH ROW
+  EXECUTE PROCEDURE fclient_log();
+ 
+select * from client;
+select * from client_log;
+
+alter table client
+add column phone varchar(12);
+
+INSERT INTO Client VALUES( 'C2001', 'White Doggie', 'Ron Pang', 'Pang@mmu.edu.my', '03-85423457' );
+INSERT INTO Client VALUES( 'C2003', 'Sudirman', 'Hoo Pang Ron', 'Ron@mmu.edu.my', '03-83123457' );
+UPDATE Client SET contact_person = 'Black Kittie', phone = '010245768' WHERE client_id = 'C2001';
+DELETE FROM Client WHERE client_id = 'C2003';
+
+
 
 
 
