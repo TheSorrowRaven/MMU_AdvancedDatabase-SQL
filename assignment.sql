@@ -208,7 +208,7 @@ insert into seat (hall_id, number, type, additional_charges) values
 	('1','B2','Normal',0.00),
 	('1','B3','Normal',0.00),
 	('1','B4','Normal',0.00),
-	('1','B5','Normal',0.00);
+	('1','B5','Normal',0.00),
 	('2','B6','Normal',0.00),
 	('2','B7','Normal',0.00),
 	('2','B8','Normal',0.00),
@@ -229,10 +229,133 @@ insert into screening (date_time) values
 	('2023-05-11 22:00:00');
 
 /* Sales (Fact Table) data */
-/* TODO */
+INSERT INTO fact_sales (customer_id, cinema_id, movie_id, category_id, screening_id, seat_id, promotion_id, paid_total) VALUES
+	(1, 1, 9, 5, 2, 6, 2, 23.50),
+	(1, 1, 9, 5, 2, 7, 2, 23.50),
+	(2, 2, 10, 1, 4, 3, 1, 21.50),
+	(3, 6, 2, 6, 9, 11, 4, 18.00),
+	(3, 6, 2, 6, 9, 12, 4, 18.00),
+	(3, 6, 5, 8, 7, 11, 4, 25.00),
+	(5, 4, 1, 10, 6, 2, 1, 16.50),
+	(5, 4, 1, 10, 6, 3, 1, 16.50),
+	(9, 8, 7, 1, 10, 14, 9, 11.50),
+	(9, 8, 7, 1, 10, 15, 9, 11.50);
 
-select * from cinema;
+select * from fact_sales;
 select * from customer;
+select * from cinema;
+select * from movie;
+select * from category;
+select * from promotion;
+select * from hall;
+select * from seat;
+select * from screening;
+
+
+/* 6a */
+/* Increases the price of non 2D categories */
+create or replace procedure increase_non_2D_category_prices(increase decimal)
+language plpgsql
+as $$
+begin
+	update category
+	set price = price + increase
+	where name not like '%2D%';
+end; $$;
+
+call increase_non_2d_category_prices(2.50);
+select * from category;
+
+/* 6b */
+/* Automatically calculate the paid_total column in fact_sales */
+create or replace function calculate_price() returns trigger
+language plpgsql
+as $$
+declare
+	_base_price decimal;
+	_seat_price decimal;
+	_promotion_discount decimal;
+	_membership boolean;
+	_membership_mlt decimal;
+	_price decimal;
+begin
+	/* Get initial price */
+	select price from category
+	where category_id = new.category_id into _base_price;
+
+	select additional_charges from seat
+	where seat_id = new.seat_id into _seat_price;
+
+	select discount from promotion
+	where promotion_id = new.promotion_id into _promotion_discount;
+
+	select membership from customer
+	where customer_id = new.customer_id into _membership;
+
+	 if _membership
+	 then
+	 	_membership_mlt = 0.8;
+	 else
+	 	_membership_mlt = 1;
+	 end if;
+
+	_price = (_base_price + _seat_price) * _membership_mlt - _promotion_discount;
+
+	new.paid_total = _price;
+	return new;
+end; $$
+
+create or replace trigger price_total_trigger
+before insert or update
+on fact_sales
+for each row
+execute procedure calculate_price();
+
+/* 6c */
+/* Retrieves a customer's purchase history */
+drop function get_customer_purchase_history;
+create or replace function get_customer_purchase_history(_customer_id integer)
+returns table(
+	customer_name varchar(255),
+	cinema_name varchar(255),
+	movie_name varchar(255),
+	category varchar(255),
+	hall_number integer,
+	seat_number varchar(10),
+	paid_amount decimal(10,2),
+	date_time timestamp
+)
+language plpgsql
+as $$
+begin
+	return QUERY
+	select c.name, cin.name, m.name, cat.name, h.number, s.number, f.paid_total, sc.date_time from fact_sales f
+	join customer c on c.customer_id = f.customer_id
+	join cinema cin on cin.cinema_id = f.cinema_id
+	join movie m on m.movie_id = f.movie_id
+	join category cat on cat.category_id = f.category_id
+	join seat s on s.seat_id = f.seat_id
+	join hall h on h.hall_id = s.hall_id
+	join screening sc on sc.screening_id = f.screening_id
+	where f.customer_id = _customer_id
+	order by sc.date_time;
+end; $$;
+
+select * from get_customer_purchase_history(3);
+
+
+
+
+select * from fact_sales;
+INSERT INTO fact_sales (customer_id, cinema_id, movie_id, category_id, screening_id, seat_id, promotion_id, paid_total) VALUES
+	(1, 1, 9, 5, 8, 6, 4, 0.00);
+delete from fact_sales
+where paid_total = 21.3;
+select c.membership, cat.price, s.additional_charges, p.discount, paid_total, ((cat.price + s.additional_charges) * 0.8 - p.discount) as "calculated_price" from fact_sales f
+join customer c on f.customer_id = c.customer_id
+join category cat on f.category_id = cat.category_id
+join seat s on f.seat_id = s.seat_id
+join promotion p on f.promotion_id = p.promotion_id;
 
 
 
