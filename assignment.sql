@@ -64,11 +64,9 @@ create table hall (
 /* Seat */
 create table seat (
 	seat_id serial primary key,
-	hall_id integer not null,
 	number varchar(10) not null,
 	type varchar(50) not null,
-	additional_charges decimal(10, 2) not null,
-	foreign key (hall_id) references hall(hall_id)
+	additional_charges decimal(10, 2) not null
 );
 
 /* Screening */
@@ -83,7 +81,8 @@ create table fact_sales (
 	cinema_id integer not null,
 	movie_id integer not null,
 	category_id integer not null,
-    screening_id integer not null,
+	screening_id integer not null,
+	hall_id integer not null,
 	seat_id integer not null,
 	promotion_id integer not null,
 	paid_total decimal(10, 2) not null,
@@ -92,6 +91,7 @@ create table fact_sales (
 	foreign key (movie_id) references movie(movie_id),
 	foreign key (category_id) references category(category_id),
 	foreign key (screening_id) references screening(screening_id),
+	foreign key (hall_id) references hall(hall_id),
 	foreign key (seat_id) references seat(seat_id),
 	foreign key (promotion_id) references promotion(promotion_id),
 	primary key (customer_id, cinema_id, movie_id, category_id, screening_id, seat_id, promotion_id)
@@ -100,6 +100,7 @@ create table fact_sales (
 
 
 
+delete from fact_sales;
 delete from customer;
 delete from cinema;
 delete from movie;
@@ -108,7 +109,6 @@ delete from promotion;
 delete from seat;
 delete from hall;
 delete from screening;
-delete from fact_sales;
 
 ALTER SEQUENCE customer_customer_id_seq RESTART WITH 1;
 ALTER SEQUENCE cinema_cinema_id_seq RESTART WITH 1;
@@ -198,22 +198,22 @@ insert into hall (number, capacity) values
 	('10',60);
 	
 /* Seat data */
-insert into seat (hall_id, number, type, additional_charges) values
-	('1','A1','Couple',5.00),
-	('1','A2','Couple',5.00),
-	('1','A3','Couple',5.00),
-	('1','A4','Couple',5.00),
-	('1','A5','Couple',5.00),
-	('1','B1','Normal',0.00),
-	('1','B2','Normal',0.00),
-	('1','B3','Normal',0.00),
-	('1','B4','Normal',0.00),
-	('1','B5','Normal',0.00),
-	('2','B6','Normal',0.00),
-	('2','B7','Normal',0.00),
-	('2','B8','Normal',0.00),
-	('2','B9','Normal',0.00),
-	('2','B10','Normal',0.00);
+insert into seat (number, type, additional_charges) values
+	('A1','Couple',5.00),
+	('A2','Couple',5.00),
+	('A3','Couple',5.00),
+	('A4','Couple',5.00),
+	('A5','Couple',5.00),
+	('B1','Normal',0.00),
+	('B2','Normal',0.00),
+	('B3','Normal',0.00),
+	('B4','Normal',0.00),
+	('B5','Normal',0.00),
+	('B6','Normal',0.00),
+	('B7','Normal',0.00),
+	('B8','Normal',0.00),
+	('B9','Normal',0.00),
+	('B10','Normal',0.00);
 
 /* Screening data */
 insert into screening (date_time) values
@@ -229,17 +229,17 @@ insert into screening (date_time) values
 	('2023-05-11 22:00:00');
 
 /* Sales (Fact Table) data */
-INSERT INTO fact_sales (customer_id, cinema_id, movie_id, category_id, screening_id, seat_id, promotion_id, paid_total) VALUES
-	(1, 1, 9, 5, 2, 6, 2, 23.50),
-	(1, 1, 9, 5, 2, 7, 2, 23.50),
-	(2, 2, 10, 1, 4, 3, 1, 21.50),
-	(3, 6, 2, 6, 9, 11, 4, 18.00),
-	(3, 6, 2, 6, 9, 12, 4, 18.00),
-	(3, 6, 5, 8, 7, 11, 4, 25.00),
-	(5, 4, 1, 10, 6, 2, 1, 16.50),
-	(5, 4, 1, 10, 6, 3, 1, 16.50),
-	(9, 8, 7, 1, 10, 14, 9, 11.50),
-	(9, 8, 7, 1, 10, 15, 9, 11.50);
+INSERT INTO fact_sales (customer_id, cinema_id, movie_id, category_id, screening_id, hall_id, seat_id, promotion_id, paid_total) VALUES
+	(1, 1, 9, 5, 2, 1, 6, 2, 23.50),
+	(1, 1, 9, 5, 2, 1, 7, 2, 23.50),
+	(2, 2, 10, 1, 4, 2, 3, 1, 21.50),
+	(3, 6, 2, 6, 9, 2, 11, 4, 18.00),
+	(3, 6, 2, 6, 9, 2, 12, 4, 18.00),
+	(3, 6, 5, 8, 7, 7, 11, 4, 25.00),
+	(5, 4, 1, 10, 6, 5, 2, 1, 16.50),
+	(5, 4, 1, 10, 6, 5, 3, 1, 16.50),
+	(9, 8, 7, 1, 10, 9, 14, 9, 11.50),
+	(9, 8, 7, 1, 10, 9, 15, 9, 11.50);
 
 select * from fact_sales;
 select * from customer;
@@ -335,7 +335,7 @@ begin
 	join movie m on m.movie_id = f.movie_id
 	join category cat on cat.category_id = f.category_id
 	join seat s on s.seat_id = f.seat_id
-	join hall h on h.hall_id = s.hall_id
+	join hall h on h.hall_id = f.hall_id
 	join screening sc on sc.screening_id = f.screening_id
 	where f.customer_id = _customer_id
 	order by sc.date_time;
@@ -347,15 +347,60 @@ select * from get_customer_purchase_history(3);
 
 
 select * from fact_sales;
-INSERT INTO fact_sales (customer_id, cinema_id, movie_id, category_id, screening_id, seat_id, promotion_id, paid_total) VALUES
-	(1, 1, 9, 5, 8, 6, 4, 0.00);
+INSERT INTO fact_sales (customer_id, cinema_id, movie_id, category_id, screening_id, hall_id, seat_id, promotion_id, paid_total) VALUES
+	(1, 1, 9, 5, 8, 5, 6, 4, 0.00);
 delete from fact_sales
-where paid_total = 21.3;
+where paid_total = 23.3;
 select c.membership, cat.price, s.additional_charges, p.discount, paid_total, ((cat.price + s.additional_charges) * 0.8 - p.discount) as "calculated_price" from fact_sales f
 join customer c on f.customer_id = c.customer_id
 join category cat on f.category_id = cat.category_id
 join seat s on f.seat_id = s.seat_id
 join promotion p on f.promotion_id = p.promotion_id;
 
+
+/* Tickets Information */
+select s.number as "Seat Number", h.number as "Hall Number", m.name as "Movie", c.name as "Cinema"
+from fact_sales f
+join seat s on (f.seat_id = s.seat_id)
+join hall h on (f.hall_id = h.hall_id)
+join movie m on (f.movie_id = m.movie_id)
+join cinema c on (f.cinema_id = c.cinema_id);
+
+/* ROLLUP of how much a customer (who has spent at least RM20 in total) spent in a movie */
+select c.name as "Customer", m.name as "Movie", sum(paid_total) as "Paid Price"
+from fact_sales f
+join customer c on (f.customer_id = c.customer_id)
+join movie m on (f.movie_id = m.movie_id)
+group by rollup (c.name, m.name)
+having sum(paid_total) > 20
+order by c.name asc;
+
+/* View of members */
+create or replace view membership as
+	select customer.name, customer.membership
+	from customer
+	where customer.membership;
+select * from membership;
+drop view membership;
+
+/* Rank the movies that has generated from least to most money (ignores movie that has never been watched) */
+select m.name as movie, sum(paid_total) as movie_total,
+percent_rank() over (order by sum(paid_total))
+from fact_sales f
+join movie m on (f.movie_id = m.movie_id)
+group by(m.name)
+
+select * from fact_sales;
+
+/* Shows the most a customer has spent on a ticket, sorted by the top spender on a single ticket */
+select name, paid_total as "Paid Most" from (
+	select c.name, f.paid_total, row_number() over(
+		partition by(c.name) order by paid_total desc
+	) as row_no
+	from fact_sales f
+	join customer c on c.customer_id = f.customer_id
+) as purchases
+where row_no = 1
+order by paid_total desc;
 
 
